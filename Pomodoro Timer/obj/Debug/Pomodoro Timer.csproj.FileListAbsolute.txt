@@ -9,3 +9,5 @@ C:\Users\pkubo\Desktop\Pomodoro-Timer\Pomodoro Timer\obj\Debug\Pomodoro Timer.cs
 C:\Users\pkubo\Desktop\Pomodoro-Timer\Pomodoro Timer\obj\Debug\Pomodoro Timer.exe
 C:\Users\pkubo\Desktop\Pomodoro-Timer\Pomodoro Timer\obj\Debug\Pomodoro Timer.pdb
 C:\Users\pkubo\Desktop\Pomodoro-Timer\Pomodoro Timer\obj\Debug\Pomodoro_Timer.Form1.resources
+C:\Users\pkubo\Desktop\Pomodoro-Timer\Pomodoro Timer\bin\Debug\AxInterop.WMPLib.dll
+C:\Users\pkubo\Desktop\Pomodoro-Timer\Pomodoro Timer\obj\Debug\Pomodoro Timer.csproj.CopyComplete

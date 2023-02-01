@@ -1,12 +1,13 @@
-﻿using Pomodoro_Timer.Graphics;
+﻿using Newtonsoft.Json;
+using Pomodoro_Timer.Models;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Reflection.Emit;
+using System.Threading;
 using System.Timers;
 using System.Windows.Forms;
 
@@ -14,9 +15,10 @@ namespace Pomodoro_Timer
 {
     public partial class Form1 : Form
     {
-        PomodoroProgressBar bar;
         private static DateTime endTime;
-        System.Timers.Timer myTimer;
+        private System.Timers.Timer myTimer;
+        private IEnumerator<int> timeEnumerator;
+
 
 
         public Form1()
@@ -26,38 +28,21 @@ namespace Pomodoro_Timer
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            bar = new PomodoroProgressBar();
-            bar.Location = new System.Drawing.Point(24, 175);
-            bar.Size = new System.Drawing.Size(275, 20);
-            bar.TabIndex = 1;
-            bar.Value = 30;
-            main_panel.Controls.Add(bar);
+            this.Menu = new MainMenu();
+            this.Menu.MenuItems.Add("Settings", new EventHandler(OpenSettingsForm));
+
+            //MenuItem item2 = new MenuItem("File");
+            //this.Menu.MenuItems.Add(item2);
+            //item2.MenuItems.Add("Save", new EventHandler(Save_Click));
+            //item2.MenuItems.Add("Open", new EventHandler(Open_Click));
         }
 
-        private void button_studyTime_Click(object sender, EventArgs e)
+        private void OpenSettingsForm(object sender, EventArgs e)
         {
-            myTimer = new System.Timers.Timer();
-            myTimer.Elapsed += new ElapsedEventHandler(decrease_timer_val);
-            myTimer.Interval = 1300; // 1000 ms is one second
-            myTimer.Start();
-
-            int min_to_work = int.Parse(textBox_studyTime.Text);
-            endTime = DateTime.Now.AddMinutes(min_to_work);
-            bar.Value= 0;
-            bar.Maximum = min_to_work * 60;
+            var form_s = new SettingsForm();
+            form_s.Show();
         }
-        private void button_breakTime_Click(object sender, EventArgs e)
-        {
-            myTimer = new System.Timers.Timer();
-            myTimer.Elapsed += new ElapsedEventHandler(decrease_timer_val);
-            myTimer.Interval = 1300; // 1000 ms is one second
-            myTimer.Start();
 
-            int min_to_work = int.Parse(textBox_breakTime.Text);
-            endTime = DateTime.Now.AddMinutes(min_to_work);
-            bar.Value = 0;
-            bar.Maximum = min_to_work * 60;
-        }
 
         public void decrease_timer_val(object source, ElapsedEventArgs e)
         {
@@ -65,10 +50,16 @@ namespace Pomodoro_Timer
 
             if (tmpTime.TotalSeconds < 0)
             {
-                myTimer.Stop();
-                WMPLib.WindowsMediaPlayer wplayer = new WMPLib.WindowsMediaPlayer();
-                wplayer.URL = @"C:\Users\pkubo\Desktop\Pomodoro-Timer\Pomodoro Timer\Desk-bell-small-sound-effect.mp3";
-                wplayer.controls.play();
+                try
+                {
+                    timeEnumerator.MoveNext();
+                    endTime = DateTime.Now.AddMinutes(timeEnumerator.Current);
+                }
+                catch (Exception)
+                {
+                    myTimer.Stop();
+
+                }
             }
 
             if (this.timer_label.InvokeRequired)
@@ -76,16 +67,91 @@ namespace Pomodoro_Timer
                 this.timer_label.BeginInvoke((MethodInvoker)delegate () {
                     timer_label.Text = tmpTime.ToString("mm':'ss");
                 });
-                this.bar.BeginInvoke((MethodInvoker)delegate () {
-                    bar.Value += 1;
-                });
             }
         }
 
 
-        private void timer_label_Click(object sender, EventArgs e)
+        public IEnumerable<int> GetTimeFromJson()
         {
+            var model = GetTimeDataModel();
+            foreach (var item in model.StudyTime)
+            {
+                yield return item;
+            }
+        }
+        public TimeDataModel GetTimeDataModel()
+        {
+            string path = @"C:\Users\pkubo\Desktop\Pomodoro-Timer\Pomodoro Timer\DataFiles\lofi35_25_5_TimeData.json";
+            string json = System.IO.File.ReadAllText(path);
 
+            var timeDataModel = JsonConvert.DeserializeObject<TimeDataModel>(json);
+            return timeDataModel;
+        }
+
+        private void playMusic()
+        {
+            //string pathh = @"C:\Users\pkubo\Desktop\Pomodoro-Timer\Pomodoro Timer\DataFiles\Desk-bell-small-sound-effect.mp3";
+            string pathh = @"C:\Users\pkubo\Desktop\Pomodoro-Timer\Pomodoro Timer\DataFiles\lofi35_25_5.mp4";
+            WMPLib.WindowsMediaPlayer wplayer = new WMPLib.WindowsMediaPlayer();
+            wplayer.URL = pathh;
+            wplayer.controls.play();
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            timeEnumerator = GetTimeFromJson().GetEnumerator();
+            timeEnumerator.MoveNext();
+            endTime = DateTime.Now.AddMinutes(timeEnumerator.Current);
+
+            myTimer = new System.Timers.Timer();
+            myTimer.Elapsed += new ElapsedEventHandler(decrease_timer_val);
+            myTimer.Interval = 1000; // 1000 ms is one second
+            myTimer.Start();
+
+            Thread thread = new Thread(playMusic);
+            thread.Start();
+        }
+
+        private void timer_label_Paint(object sender, PaintEventArgs e)
+        {
+            Color OutlineForeColor = Color.Black;
+            float OutlineWidth = 2;
+
+            
+            //e.Graphics.FillRectangle(new SolidBrush(Color.White), ClientRectangle);
+            using (GraphicsPath gp = new GraphicsPath())
+            {
+                using (Pen outline = new Pen(OutlineForeColor, OutlineWidth){ LineJoin = LineJoin.Round })
+                {
+                    using (StringFormat sf = new StringFormat())
+                    {
+                        using (Brush foreBrush = new SolidBrush(ForeColor))
+                        {
+                            Matrix matrix = new Matrix();
+                            matrix.Translate(2, 0);
+
+                            gp.AddString(
+                                timer_label.Text, 
+                                timer_label.Font.FontFamily, 
+                                (int)timer_label.Font.Style, 
+                                timer_label.Font.Size, 
+                                timer_label.ClientRectangle, 
+                                sf
+                            );
+                            e.Graphics.ScaleTransform(1.3f, 1.35f);
+                            //e.Graphics.ScaleTransform(12, 12);
+                            e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
+
+                            gp.Transform(matrix);
+
+                            e.Graphics.DrawPath(outline, gp);
+                            //e.Graphics.FillPath(foreBrush, gp);
+
+                        }
+                    }
+                }
+            }
+            
         }
     }
 }
